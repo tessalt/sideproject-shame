@@ -1,19 +1,34 @@
 /** @jsx React.DOM */
 
+var Repo = function(object) {
+  this.name = object.name;
+}
+
+var loadRepos = function(callback) {
+  var oReq = new XMLHttpRequest();
+  oReq.open("get", "https://api.github.com/users/tessalt/repos", true);
+  oReq.send();
+  oReq.onload = function(){
+    var response = JSON.parse(this.responseText);
+    var repos = [];
+    for (var i = 0; i < response.length; i++) {
+      var repo = new Repo(response[i]);
+      repos.push(repo);
+    }
+    callback(repos);
+  };
+}
+
 var Repos = React.createClass({
-  loadRepos: function() {
-    $.ajax({
-      url: this.props.url,
-      success: function(data) {
-        this.setState({data: data});
-      }.bind(this)
-    });
-  },
   getInitialState: function() {
     return {data: []};
   },
   componentWillMount: function() {
-    this.loadRepos();
+    var _this = this;
+    loadRepos(function(data){
+      console.log(data);
+      _this.setState({data:data})
+    });
   },
   render: function() {
     return (
