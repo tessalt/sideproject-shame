@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>auth</title>
+</head>
+<body>
+
+<script src="http://code.jquery.com/jquery-1.10.0.min.js"></script>
+<script>
+$.ajax({
+  url: 'https://github.com/login/oauth/authorize',
+  data: {
+    client_id: 'd6af12d2e13e2b8dd167',
+    redirect_uri: 'http://localhost:8000/index.html',
+    scope: 'public_repo',
+    state: Math.floor(Math.random() * (1000 - 100)) + 100
+  }
+})
+</script>
+</body>
+</html>
