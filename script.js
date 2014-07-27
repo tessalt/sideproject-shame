@@ -33,16 +33,20 @@ var yScale = d3.scale.linear()
 //   .tickSize(-w + margin * 2, 0)
 //   .orient("left");
 
-var getRepos = $.get('https://api.github.com/users/tessalt/repos');
+var reposUrl = 'https://api.github.com/users/tessalt/repos';
+
+var getRepos = $.get(reposUrl);
 var commits = [];
 
 
 
 getRepos.success(function(data){
   var deferreds = [];
+  localStorage.setItem(reposUrl, JSON.stringify(data));
   $.each(data, function(i, object) {
     var commitsUrl = object.commits_url.substr(0, object.commits_url.length-6);
     deferreds.push($.get(commitsUrl, function(stuff){
+      localStorage.setItem(commitsUrl, JSON.stringify(stuff));
       // console.log(stuff);
       commits.push(stuff);
     }));
