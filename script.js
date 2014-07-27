@@ -33,48 +33,50 @@ var yScale = d3.scale.linear()
 //   .tickSize(-w + margin * 2, 0)
 //   .orient("left");
 
+function loadOptimistically(url, cb) {
+  var localVersion = localStorage.getItem(url);
+  if (localVersion) {
+    cb(JSON.parse(localVersion));
+  } else {
+    $.get(url, function(data){
+      localStorage.setItem(url, JSON.stringify(data));
+      cb(data);
+    });
+  }
+}
+
 var reposUrl = 'https://api.github.com/users/tessalt/repos';
+
+var repos = [];
 
 var commits = [];
 
-// var getRepos = new $.Deferred();
-
 function getRepos() {
   var dfd = new $.Deferred();
-  var localRepos = localStorage.getItem(reposUrl);
-  if (localRepos) {
-    dfd.resolve(JSON.parse(localRepos));
-  } else {
-    $.get(reposUrl, function(data){
-      localStorage.setItem(reposUrl, JSON.stringify(data));
-      dfd.resolve(data);
-    });
-  }
+  loadOptimistically(reposUrl, function(data){
+    dfd.resolve(data);
+  });
   return dfd.promise();
 }
 
 $.when(getRepos()).then(function(data){
   var deferreds = [];
   $.each(data, function(i, object) {
+    var repoObj = {
+      name: object.name
+    };
     var commitsUrl = object.commits_url.substr(0, object.commits_url.length-6);
-    var localCommits = localStorage.getItem(commitsUrl);
     var dfd = new $.Deferred();
-    if (localCommits) {
-      commits.push(JSON.parse(localCommits))
+    loadOptimistically(commitsUrl, function(data){
+      repoObj.commits = data;
       dfd.resolve();
-    } else {
-      $.get(commitsUrl, function(data){
-        localStorage.setItem(commitsUrl, JSON.stringify(data));
-        commits.push(data);
-        dfd.resolve();
-      });
-    }
+    });
+    repos.push(repoObj);
     deferreds.push(dfd.promise());
   });
 
-
   $.when.apply($, deferreds).then(function(def){
-    console.log(commits);
+    console.log(repos);
   });
 
 });
