@@ -35,26 +35,46 @@ var yScale = d3.scale.linear()
 
 var reposUrl = 'https://api.github.com/users/tessalt/repos';
 
-var getRepos = $.get(reposUrl);
 var commits = [];
 
+// var getRepos = new $.Deferred();
 
+function getRepos() {
+  var dfd = new $.Deferred();
+  var localRepos = localStorage.getItem(reposUrl);
+  if (localRepos) {
+    dfd.resolve(JSON.parse(localRepos));
+  } else {
+    $.get(reposUrl, function(data){
+      localStorage.setItem(reposUrl, JSON.stringify(data));
+      dfd.resolve(data);
+    });
+  }
+  return dfd.promise();
+}
 
-getRepos.success(function(data){
+$.when(getRepos()).then(function(data){
   var deferreds = [];
-  localStorage.setItem(reposUrl, JSON.stringify(data));
   $.each(data, function(i, object) {
     var commitsUrl = object.commits_url.substr(0, object.commits_url.length-6);
-    deferreds.push($.get(commitsUrl, function(stuff){
-      localStorage.setItem(commitsUrl, JSON.stringify(stuff));
-      // console.log(stuff);
-      commits.push(stuff);
-    }));
+    var localCommits = localStorage.getItem(commitsUrl);
+    var dfd = new $.Deferred();
+    if (localCommits) {
+      commits.push(JSON.parse(localCommits))
+      dfd.resolve();
+    } else {
+      $.get(commitsUrl, function(data){
+        localStorage.setItem(commitsUrl, JSON.stringify(data));
+        commits.push(data);
+        dfd.resolve();
+      });
+    }
+    deferreds.push(dfd.promise());
   });
 
 
   $.when.apply($, deferreds).then(function(def){
     console.log(commits);
   });
-});
 
+});
