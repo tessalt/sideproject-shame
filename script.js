@@ -5,9 +5,9 @@ var login = 'tessalt';
 // sizing vars
 var viewportWidth  = $(".graph").width(),
     viewportHeight = document.documentElement.clientHeight,
-    margin = 0,
-    w = viewportWidth - margin,
-    h = viewportHeight - margin*3;
+    margin = 50,
+    w = viewportWidth ,
+    h = viewportHeight - margin*2;
 
 // create svg element
 var svg = d3.select(".graph")
@@ -16,23 +16,16 @@ var svg = d3.select(".graph")
   .attr("height", h);
 
 var xScale = d3.time.scale()
-  .range([0 + margin, w - margin]);
+  .range([0 + margin, w - (margin * 3)]);
 
 var yScale = d3.scale.linear()
   .range([0 + margin, h - margin]);
 
-  // set axes
-// var xAxis = d3.svg.axis()
-//   .scale(xScale)
-//   .orient("bottom")
-//   .tickPadding(margin / 4)
-//   .tickSize(-h  + margin * 2, 0);
-
-// var yAxis = d3.svg.axis()
-//   .scale(yScale)
-//   .tickPadding(margin / 4)
-//   .tickSize(-w + margin * 2, 0)
-//   .orient("left");
+var xAxis = d3.svg.axis()
+  .scale(xScale)
+  .orient("bottom")
+  .ticks(d3.time.month)
+  .tickFormat(d3.time.format('%b'));
 
 function loadOptimistically(url, cb) {
   var localVersion = localStorage.getItem(url);
@@ -110,13 +103,27 @@ function createChart(repos) {
 
   xScale.domain([xMin, xMax]);
 
+  svg.append("g")
+    .attr("class", "axis")
+    .call(xAxis)
+    .attr("transform", "translate(0," + (h - margin ) + ")");
+
   var rectangles = svg.append('g')
     .selectAll('g')
     .data(repos)
     .enter()
     .append('g');
 
-  rectangles.append('rect')
+  var guides = rectangles.append('rect')
+    .attr('x', 0)
+    .attr('y', function(d, i){
+      return i * 20;
+    })
+    .attr('width', w)
+    .attr('height', 1)
+    .attr('fill', '#ffeeee');
+
+  var commits = rectangles.append('rect')
     .attr('x', function(d) {
       return xScale(d.first_commit);
     })
@@ -126,11 +133,24 @@ function createChart(repos) {
     .attr('width', function(d){
       return xScale(d.last_commit) - xScale(d.first_commit);
     })
-    .attr('height', 15)
+    .attr('height', 19)
     .attr('class', function(d){
       return d.name;
     })
     .attr('fill', 'grey');
+
+  rectangles.append('text')
+    .attr('x', w - margin *2)
+    .attr('y', function(d, i){
+      return (i * 20) + 15;
+    })
+    .text(function(d){
+      return d.name
+    })
+    .attr("font-size", 12)
+    .attr("text-anchor", "start")
+    .attr("fill", "#000");
+
 
   rectangles.selectAll('rect')
     .data(function(d){
@@ -139,10 +159,9 @@ function createChart(repos) {
     .enter()
     .insert('rect')
     .attr('width', 1)
-    .attr('height', 15)
+    .attr('height', 19)
     .attr('class', function(d){
       if (d.author) {
-
         return d.author.login;
       }
     })
