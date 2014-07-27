@@ -5,18 +5,18 @@ var login = 'tessalt';
 // sizing vars
 var viewportWidth  = $(".graph").width(),
     viewportHeight = document.documentElement.clientHeight,
-    margin = 50,
+    margin = 150,
     w = viewportWidth ,
-    h = viewportHeight - margin*2;
+    h = viewportHeight - margin;
 
 // create svg element
 var svg = d3.select(".graph")
   .append("svg")
-  .attr("width", w)
+  .attr("width", w - margin)
   .attr("height", h);
 
 var xScale = d3.time.scale()
-  .range([0 + margin, w - (margin * 3)]);
+  .range([0 + margin, w - (margin )]);
 
 var yScale = d3.scale.linear()
   .range([0 + margin, h - margin]);
@@ -39,7 +39,7 @@ function loadOptimistically(url, cb) {
   }
 }
 
-var reposUrl = 'https://api.github.com/users/tessalt/repos';
+var reposUrl = 'https://api.github.com/users/'+ login +'/repos';
 
 var repos = [];
 
@@ -103,10 +103,12 @@ function createChart(repos) {
 
   xScale.domain([xMin, xMax]);
 
+  var reposCount = repos.length;
+
   svg.append("g")
     .attr("class", "axis")
     .call(xAxis)
-    .attr("transform", "translate(0," + (h - margin ) + ")");
+    .attr("transform", "translate(0," + reposCount * 20 + ")");
 
   var rectangles = svg.append('g')
     .selectAll('g')
@@ -121,9 +123,9 @@ function createChart(repos) {
     })
     .attr('width', w)
     .attr('height', 1)
-    .attr('fill', '#ffeeee');
+    .attr('fill', 'none');
 
-  var commits = rectangles.append('rect')
+  var repos = rectangles.append('rect')
     .attr('x', function(d) {
       return xScale(d.first_commit);
     })
@@ -131,44 +133,52 @@ function createChart(repos) {
       return i * 20;
     })
     .attr('width', function(d){
-      return xScale(d.last_commit) - xScale(d.first_commit);
+      var width = xScale(d.last_commit) - xScale(d.first_commit);
+      return width > 1 ? width : 1;
     })
-    .attr('height', 19)
+    .attr('height', 20)
     .attr('class', function(d){
       return d.name;
     })
-    .attr('fill', 'grey');
+    // .attr('fill', 'none');
+    .attr('fill', 'rgba(0,0,0,0.02)');
 
-  rectangles.append('text')
-    .attr('x', w - margin *2)
+  var labels = rectangles.append('text')
+    .attr('x', 10)
     .attr('y', function(d, i){
       return (i * 20) + 15;
     })
     .text(function(d){
       return d.name
     })
+    .attr('width', function(d){
+      return margin /2;
+    })
     .attr("font-size", 12)
     .attr("text-anchor", "start")
+    .attr('font-family', 'Helvetica')
     .attr("fill", "#000");
 
 
-  rectangles.selectAll('rect')
+  var commits = rectangles.selectAll('g')
     .data(function(d){
+      console.log(d.name + ': ' + d.commits.length);
       return d.commits;
     })
     .enter()
-    .insert('rect')
+    .append('rect')
     .attr('width', 1)
     .attr('height', 19)
-    .attr('class', function(d){
-      if (d.author) {
-        return d.author.login;
-      }
-    })
+    .attr('fill', 'rgba(0,0,0,0.4)')
+    // .text(function(d){
+    //   return d.commit.message;
+    // })
     .attr('x', function(d){
-      return xScale(new Date(d.commit.committer.date));
+      return xScale(new Date(d.commit.author.date));
+      return 0;
     })
     .attr('y', function(d, i){
       return d3.select(this.parentNode.firstChild).attr('y');
+      return 0;
     })
 }
