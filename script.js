@@ -2,18 +2,30 @@ var data; // a global
 
 var login = 'tessalt';
 
+var colors = [
+  'rgba(22, 160, 133,1.0)',
+  'rgba(39, 174, 96,1.0)',
+  'rgba(41, 128, 185,1.0)',
+  'rgba(142, 68, 173,1.0)',
+  'rgba(52, 73, 94,1.0)',
+  'rgba(192, 57, 43,1.0)',
+  'rgba(211, 84, 0,1.0)'
+]
+
 // sizing vars
 var viewportWidth  = $(".graph").width(),
     viewportHeight = document.documentElement.clientHeight,
-    margin = 150,
+    margin = 175,
     w = viewportWidth ,
-    h = viewportHeight - margin;
+    h = viewportHeight ;
 
 // create svg element
 var svg = d3.select(".graph")
   .append("svg")
   .attr("width", w - margin)
   .attr("height", h);
+
+var colorScale = d3.scale.ordinal().range(colors);
 
 var xScale = d3.time.scale()
   .range([0 + margin, w - (margin )]);
@@ -25,6 +37,7 @@ var xAxis = d3.svg.axis()
   .scale(xScale)
   .orient("bottom")
   .ticks(d3.time.month)
+  .outerTickSize(0)
   .tickFormat(d3.time.format('%b'));
 
 function loadOptimistically(url, cb) {
@@ -105,9 +118,13 @@ function createChart(repos) {
 
   var reposCount = repos.length;
 
+  colorScale.domain(d3.extent(repos, function(repo){
+    return new Date(repo.created_at);
+  }))
+
   svg.append("g")
-    .attr("class", "axis")
     .call(xAxis)
+    .attr('class', 'axis')
     .attr("transform", "translate(0," + reposCount * 20 + ")");
 
   var rectangles = svg.append('g')
@@ -116,69 +133,70 @@ function createChart(repos) {
     .enter()
     .append('g');
 
-  var guides = rectangles.append('rect')
-    .attr('x', 0)
-    .attr('y', function(d, i){
-      return i * 20;
-    })
-    .attr('width', w)
-    .attr('height', 1)
-    .attr('fill', 'none');
-
   var repos = rectangles.append('rect')
+    .style({
+      'opacity': 0.2
+    })
     .attr('x', function(d) {
       return xScale(d.first_commit);
     })
     .attr('y', function(d, i){
-      return i * 20;
+      return (i * 20) + 8;
     })
     .attr('width', function(d){
       var width = xScale(d.last_commit) - xScale(d.first_commit);
       return width > 1 ? width : 1;
     })
-    .attr('height', 20)
+    .attr('height', 5)
     .attr('class', function(d){
       return d.name;
     })
-    // .attr('fill', 'none');
-    .attr('fill', 'rgba(0,0,0,0.02)');
+    .attr('fill', function(d, i){
+      return colorScale(d.created_at);
+    });
 
-  var labels = rectangles.append('text')
-    .attr('x', 10)
-    .attr('y', function(d, i){
-      return (i * 20) + 15;
-    })
-    .text(function(d){
-      return d.name
-    })
-    .attr('width', function(d){
-      return margin /2;
-    })
-    .attr("font-size", 12)
-    .attr("text-anchor", "start")
-    .attr('font-family', 'Helvetica')
-    .attr("fill", "#000");
-
+  // var labels = rectangles.append('text')
+  //   .attr('x', margin - 10)
+  //   .attr('y', function(d, i){
+  //     return (i * 20) + 15;
+  //   })
+  //   .text(function(d){
+  //     return d.name
+  //   })
+  //   .attr('width', function(d){
+  //     return margin /2;
+  //   })
+  //   .attr("font-size", 12)
+  //   .attr("text-anchor", "end")
+  //   .attr("fill", "rgba(255,255,255,0.7)");
 
   var commits = rectangles.selectAll('g')
     .data(function(d){
-      console.log(d.name + ': ' + d.commits.length);
       return d.commits;
     })
     .enter()
-    .append('rect')
-    .attr('width', 1)
+    .append('circle')
+    .style({
+      'opacity': 0.2
+    })
+    .attr('r', 5)
     .attr('height', 19)
-    .attr('fill', 'rgba(0,0,0,0.4)')
-    // .text(function(d){
-    //   return d.commit.message;
-    // })
-    .attr('x', function(d){
+    .attr('fill', function(d){
+      return d3.select(this.parentNode.firstChild).attr('fill');
+    })
+    .attr('cx', function(d){
       return xScale(new Date(d.commit.author.date));
-      return 0;
     })
+    .attr('cy', function(d, i){
+      return parseInt(d3.select(this.parentNode.firstChild).attr('y')) + 3;
+    });
+
+  var guides = rectangles.append('rect')
+    .attr('x', margin)
     .attr('y', function(d, i){
-      return d3.select(this.parentNode.firstChild).attr('y');
-      return 0;
+      return i * 20;
     })
+    .attr('width', w)
+    .attr('height', 1)
+    .attr('fill', 'rgba(255,255,255,0.05)');
 }
