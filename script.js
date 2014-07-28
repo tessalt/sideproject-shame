@@ -9,15 +9,16 @@ var colors = [
   'rgba(142, 68, 173,1.0)',
   'rgba(52, 73, 94,1.0)',
   'rgba(192, 57, 43,1.0)',
-  'rgba(211, 84, 0,1.0)'
+  'rgba(211, 84, 0,1.0)',
+  'rgba(241, 196, 15,1.0)'
 ]
 
 // sizing vars
 var viewportWidth  = $(".graph").width(),
     viewportHeight = document.documentElement.clientHeight,
     margin = 175,
-    w = viewportWidth ,
-    h = viewportHeight ;
+    w = viewportWidth,
+    h = viewportHeight;
 
 // create svg element
 var svg = d3.select(".graph")
@@ -28,7 +29,7 @@ var svg = d3.select(".graph")
 var colorScale = d3.scale.ordinal().range(colors);
 
 var xScale = d3.time.scale()
-  .range([0 + margin, w - (margin )]);
+  .range([0 + margin, w - (margin +1)]);
 
 var yScale = d3.scale.linear()
   .range([0 + margin, h - margin]);
@@ -68,28 +69,38 @@ function getRepos() {
 
 $.when(getRepos()).then(function(data){
   var deferreds = [];
+  console.log(data);
   $.each(data, function(i, object) {
-    var repoObj = {
-      name: object.name,
-      created_at: object.created_at,
-      updated_at: object.updated_at
-    };
-    var commitsUrl = object.commits_url.substr(0, object.commits_url.length-6);
     var dfd = new $.Deferred();
-    loadOptimistically(commitsUrl, function(data){
-      var filtered = data.filter(function(item){
-        if (item.author) {
-          return item.author.login === login;
-        } else {
-          return false;
-        }
+    if (object.size) {
+      var repoObj = {
+        name: object.name,
+        created_at: object.created_at,
+        updated_at: object.updated_at,
+        language: object.language
+      };
+      var commitsUrl = object.commits_url.substr(0, object.commits_url.length-6);
+      loadOptimistically(commitsUrl, function(data){
+        var filtered = data.filter(function(item){
+          if (item.author) {
+            return item.author.login === login;
+          } else {
+            return false;
+          }
+        });
+        repoObj.first_commit = d3.min(filtered, function(commit) {
+          return new Date(commit.commit.committer.date);
+          }) || new Date(repoObj.created_at);
+        repoObj.last_commit = d3.max(filtered, function(commit) {
+          return new Date(commit.commit.committer.date);
+          }) || new Date(repoObj.updated_at);
+        repoObj.commits = filtered;
+        dfd.resolve();
       });
-      repoObj.first_commit = d3.min(filtered, function(commit) {return new Date(commit.commit.committer.date);}) || new Date(repoObj.created_at);
-      repoObj.last_commit = d3.max(filtered, function(commit) {return new Date(commit.commit.committer.date);}) || new Date(repoObj.updated_at);
-      repoObj.commits = filtered;
+      repos.push(repoObj);
+    } else {
       dfd.resolve();
-    });
-    repos.push(repoObj);
+    }
     deferreds.push(dfd.promise());
   });
 
@@ -118,9 +129,15 @@ function createChart(repos) {
 
   var reposCount = repos.length;
 
-  colorScale.domain(d3.extent(repos, function(repo){
-    return new Date(repo.created_at);
-  }))
+  var langs = [];
+
+  repos.forEach(function(repo){
+    if (repo.language && !(langs.indexOf(repo.language) > -1)) {
+      langs.push(repo.language);
+    }
+  });
+
+  colorScale.domain(langs);
 
   svg.append("g")
     .call(xAxis)
@@ -141,54 +158,54 @@ function createChart(repos) {
       return xScale(d.first_commit);
     })
     .attr('y', function(d, i){
-      return (i * 20) + 8;
+      return (i * 20);
     })
     .attr('width', function(d){
       var width = xScale(d.last_commit) - xScale(d.first_commit);
       return width > 1 ? width : 1;
     })
-    .attr('height', 5)
+    .attr('height', 20)
     .attr('class', function(d){
       return d.name;
     })
     .attr('fill', function(d, i){
-      return colorScale(d.created_at);
+      return colorScale(d.language);
     });
 
-  // var labels = rectangles.append('text')
-  //   .attr('x', margin - 10)
-  //   .attr('y', function(d, i){
-  //     return (i * 20) + 15;
-  //   })
-  //   .text(function(d){
-  //     return d.name
-  //   })
-  //   .attr('width', function(d){
-  //     return margin /2;
-  //   })
-  //   .attr("font-size", 12)
-  //   .attr("text-anchor", "end")
-  //   .attr("fill", "rgba(255,255,255,0.7)");
+  var labels = rectangles.append('text')
+    .attr('x', margin - 10)
+    .attr('y', function(d, i){
+      return (i * 20) + 15;
+    })
+    .text(function(d){
+      return d.name
+    })
+    .attr('width', function(d){
+      return margin /2;
+    })
+    .attr("font-size", 12)
+    .attr("text-anchor", "end")
+    .attr("fill", "rgba(0,0,0,0.7)");
 
   var commits = rectangles.selectAll('g')
     .data(function(d){
       return d.commits;
     })
     .enter()
-    .append('circle')
+    .append('rect')
     .style({
       'opacity': 0.2
     })
-    .attr('r', 5)
+    .attr('width', 1)
     .attr('height', 19)
     .attr('fill', function(d){
       return d3.select(this.parentNode.firstChild).attr('fill');
     })
-    .attr('cx', function(d){
+    .attr('x', function(d){
       return xScale(new Date(d.commit.author.date));
     })
-    .attr('cy', function(d, i){
-      return parseInt(d3.select(this.parentNode.firstChild).attr('y')) + 3;
+    .attr('y', function(d, i){
+      return parseInt(d3.select(this.parentNode.firstChild).attr('y')) ;
     });
 
   var guides = rectangles.append('rect')
@@ -198,5 +215,5 @@ function createChart(repos) {
     })
     .attr('width', w)
     .attr('height', 1)
-    .attr('fill', 'rgba(255,255,255,0.05)');
+    .attr('fill', 'rgba(0,0,0,0.05)');
 }
